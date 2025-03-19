@@ -7,10 +7,12 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     using ECDSA for bytes32;
+    using MessageHashUtils for bytes32;
 
     mapping(address => uint256) public nonces;
     
@@ -96,12 +98,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         }
 
         // Verify signature
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",
-                keccak256(abi.encode(tokens, amounts, recipient, nonces[recipient], expirationBlock))
-            )
-        );
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, nonces[recipient], expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
@@ -145,12 +143,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",
-                keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[recipient], expirationBlock))
-            )
-        );
+        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[recipient], expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
@@ -181,12 +175,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",
-                keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[recipient], expirationBlock))
-            )
-        );
+        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[recipient], expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
