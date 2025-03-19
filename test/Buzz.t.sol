@@ -125,11 +125,7 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
 
         // Create signature for user1
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -142,11 +138,7 @@ contract BuzzTest is Test {
         assertEq(buzz.getNonce(user2), 0);
 
         // Create signature for user2
-        hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user2, buzz.getNonce(user2), expirationBlock))
-        ));
-        messageHash = hash.toEthSignedMessageHash();
+        messageHash = keccak256(abi.encode(tokens, amounts, user2, buzz.getNonce(user2), expirationBlock)).toEthSignedMessageHash();
         (v, r, s) = vm.sign(ownerPrivateKey, messageHash);
         signature = abi.encodePacked(r, s, v);
 
@@ -211,11 +203,7 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
 
         // Create an invalid signature by signing with a different private key
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xB0B, messageHash); // Different private key
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -231,11 +219,7 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -255,11 +239,7 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -283,11 +263,7 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -311,11 +287,7 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode("ERC721", tokens, tokenIds, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode("ERC721", tokens, tokenIds, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -340,11 +312,7 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
 
-        bytes32 hash = keccak256(abi.encodePacked(
-            "\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encode("ERC1155", tokens, ids, amounts, user, buzz.getNonce(user), expirationBlock))
-        ));
-        bytes32 messageHash = hash.toEthSignedMessageHash();
+        bytes32 messageHash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, user, buzz.getNonce(user), expirationBlock)).toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
