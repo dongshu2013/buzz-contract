@@ -24,7 +24,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     error InvalidWithdrawalData();
     error WithdrawalExpired();
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor() Ownable(tx.origin) {}
 
     receive() external payable {}
 

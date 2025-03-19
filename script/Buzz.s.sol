@@ -7,48 +7,57 @@ import "forge-std/console.sol";
 
 contract BuzzScript is Script {
     address constant DETERMINISTIC_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
-    bytes32 constant SALT = bytes32(uint256(1)); // Using salt 1
 
     function setUp() public {}
 
     function run() public {
         uint256 deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
-        address owner = vm.addr(deployerPrivateKey);
         vm.startBroadcast(deployerPrivateKey);
 
-        // Get the initialization code with constructor arguments
-        bytes memory creationCode = abi.encodePacked(
-            type(Buzz).creationCode,
-            abi.encode(owner) // Pass owner address to constructor
-        );
-        
+        // Get the initialization code
+        bytes memory creationCode = type(Buzz).creationCode;
+
+        // Use a fixed salt for deterministic deployment across all chains
+        bytes32 salt = keccak256(bytes("buzz_contract_v1"));
+
         // Calculate the deterministic address
         address predictedAddress = vm.computeCreate2Address(
-            SALT,
+            salt,
             keccak256(creationCode),
             DETERMINISTIC_DEPLOYER
         );
-        
         console.log("Predicted deployment address:", predictedAddress);
 
-        // Deploy using CREATE2
-        bytes memory deployCode = abi.encodePacked(
-            hex"602d8060093d393df3363d3d373d3d3d363d73",
-            DETERMINISTIC_DEPLOYER,
-            hex"5af43d82803e903d91602b57fd5bf3",
-            abi.encodePacked(bytes32(SALT), creationCode)
-        );
-
-        // Deploy the contract
-        address deployedAddress;
+        // Check if contract is already deployed
+        uint256 codeSize;
         assembly {
-            deployedAddress := create(0, add(deployCode, 0x20), mload(deployCode))
+            codeSize := extcodesize(predictedAddress)
         }
-        require(deployedAddress != address(0), "Deployment failed");
-        require(deployedAddress == predictedAddress, "Deployment address mismatch");
 
-        console.log("Contract deployed at:", deployedAddress);
-        console.log("Contract owner set to:", owner);
+        if (codeSize == 0) {
+            console.log("Deploying new contract...");
+
+            // Format the calldata for the CREATE2 deployer
+            // The calldata should be: <32 bytes salt><initialization code>
+            bytes memory deployData = bytes.concat(salt, creationCode);
+
+            // Send transaction directly to the CREATE2 deployer
+            (bool success,) = DETERMINISTIC_DEPLOYER.call{gas: 3000000}(deployData);
+            require(success, "Deployment failed");
+
+            // Verify deployment
+            assembly {
+                codeSize := extcodesize(predictedAddress)
+            }
+            require(codeSize > 0, "Deployment verification failed");
+
+            console.log("Contract deployed at:", predictedAddress);
+            address owner = Buzz(payable(predictedAddress)).owner();
+            console.log("Contract owner set to:", owner);
+        } else {
+            console.log("Contract already deployed at:", predictedAddress);
+            console.log("Current owner:", Buzz(payable(predictedAddress)).owner());
+        }
 
         vm.stopBroadcast();
     }
