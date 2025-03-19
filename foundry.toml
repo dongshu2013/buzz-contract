@@ -2,5 +2,13 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+solc = "0.8.19"  # Match our contract version
+optimizer = true
+optimizer_runs = 200
+verbosity = 2    # Show more details during testing
+
+[profile.ci]
+verbosity = 3    # More verbose output for CI environments
+fuzz_runs = 1000 # More fuzz runs in CI for better coverage
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
