@@ -14,8 +14,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    mapping(address => uint256) public nonces;
-    
+    mapping(uint256 => uint256) public nonces;
+
     event WithdrawalBatch(address[] tokens, address recipient, uint256[] amounts);
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
@@ -32,14 +32,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
 
     fallback() external payable {}
 
-    /**
-     * @dev Returns the current nonce for a recipient. This nonce is used to prevent replay attacks
-     * and must be included in the signature for withdrawals.
-     * @param recipient The address to get the nonce for
-     * @return The current nonce for the recipient
-     */
-    function getNonce(address recipient) external view returns (uint256) {
-        return nonces[recipient];
+    function getNonce(uint256 referenceId) external view returns (uint256) {
+        return nonces[referenceId];
     }
 
     function onERC721Received(
@@ -83,6 +77,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     function withdraw(
         address[] calldata tokens,
         uint256[] calldata amounts,
+        uint256 referenceId,
         address recipient,
         uint256 expirationBlock,
         bytes calldata signature
@@ -98,14 +93,14 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         }
 
         // Verify signature
-        bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, nonces[recipient], expirationBlock));
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
         }
 
-        nonces[recipient]++;
+        nonces[referenceId]++;
 
         // Process withdrawals
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -130,6 +125,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     function withdrawERC721(
         address[] calldata tokens,
         uint256[] calldata tokenIds,
+        uint256 referenceId,
         address recipient,
         uint256 expirationBlock,
         bytes calldata signature
@@ -143,14 +139,14 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[recipient], expirationBlock));
+        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
         }
 
-        nonces[recipient]++;
+        nonces[referenceId]++;
 
         for (uint256 i = 0; i < tokens.length; i++) {
             IERC721(tokens[i]).safeTransferFrom(address(this), recipient, tokenIds[i]);
@@ -162,6 +158,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         address[] calldata tokens,
         uint256[] calldata ids,
         uint256[] calldata amounts,
+        uint256 referenceId,
         address recipient,
         uint256 expirationBlock,
         bytes calldata signature
@@ -175,14 +172,14 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[recipient], expirationBlock));
+        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != owner()) {
             revert InvalidSignature();
         }
 
-        nonces[recipient]++;
+        nonces[referenceId]++;
 
         for (uint256 i = 0; i < tokens.length; i++) {
             IERC1155(tokens[i]).safeTransferFrom(
