@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("MockToken", "MTK") {
@@ -32,6 +33,8 @@ contract MockERC1155 is ERC1155 {
 contract BuzzTest is Test {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
+
+    event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
 
     Buzz public buzz;
     MockERC20 public token;
@@ -330,5 +333,64 @@ contract BuzzTest is Test {
 
         assertEq(multiToken.balanceOf(user, 1), 25);
         assertEq(multiToken.balanceOf(address(buzz), 1), 25);
+    }
+
+    function test_DepositNativeToken() public {
+        // Test depositing ETH
+        vm.prank(user);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(address(0), 0, 1 ether);
+        buzz.deposit{value: 1 ether}(address(0), 0);
+        assertEq(address(buzz).balance, 1 ether);
+    }
+
+    function test_DepositERC20() public {
+        // Give user some tokens and approve buzz contract
+        vm.startPrank(owner);
+        token.transfer(user, 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        token.approve(address(buzz), 5 ether);
+        
+        // Test depositing ERC20 tokens
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(address(token), 2 ether, 0);
+        buzz.deposit(address(token), 2 ether);
+        
+        assertEq(token.balanceOf(address(buzz)), 2 ether);
+        assertEq(token.balanceOf(user), 8 ether);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_InsufficientERC20Allowance() public {
+        // Give user some tokens but don't approve
+        vm.prank(owner);
+        token.transfer(user, 10 ether);
+
+        // Try to deposit without approval
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(buzz), 0, 2 ether));
+        buzz.deposit(address(token), 2 ether);
+    }
+
+    function test_DepositBothNativeAndERC20() public {
+        // Give user some tokens and approve buzz contract
+        vm.startPrank(owner);
+        token.transfer(user, 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        token.approve(address(buzz), 5 ether);
+        
+        // Test depositing both ETH and ERC20 tokens in same transaction
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(address(token), 2 ether, 1 ether);
+        buzz.deposit{value: 1 ether}(address(token), 2 ether);
+        
+        assertEq(address(buzz).balance, 1 ether);
+        assertEq(token.balanceOf(address(buzz)), 2 ether);
+        assertEq(token.balanceOf(user), 8 ether);
+        vm.stopPrank();
     }
 }

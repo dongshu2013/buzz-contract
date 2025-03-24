@@ -16,6 +16,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
 
     mapping(uint256 => uint256) public nonces;
 
+    event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
     event WithdrawalBatch(address[] tokens, address recipient, uint256[] amounts);
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
@@ -34,6 +35,13 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
 
     function getNonce(uint256 referenceId) external view returns (uint256) {
         return nonces[referenceId];
+    }
+
+    function deposit(address token, uint256 tokenAmount) external payable {
+        if (token != address(0)) {
+            IERC20(token).transferFrom(msg.sender, address(this), tokenAmount);
+        }
+        emit Deposit(token, tokenAmount, msg.value);
     }
 
     function onERC721Received(
