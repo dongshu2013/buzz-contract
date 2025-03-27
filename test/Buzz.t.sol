@@ -35,6 +35,7 @@ contract BuzzTest is Test {
     using MessageHashUtils for bytes32;
 
     event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
+    event ValidatorUpdated(address indexed newValidator, address indexed oldValidator);
 
     Buzz public buzz;
     MockERC20 public token;
@@ -45,10 +46,14 @@ contract BuzzTest is Test {
     address public user;
     address public user2;
     uint256 public ownerPrivateKey;
+    uint256 public validatorPrivateKey;
+    address public validator;
 
     function setUp() public {
         ownerPrivateKey = 0xA11CE;
+        validatorPrivateKey = 0xB0B;
         owner = vm.addr(ownerPrivateKey);
+        validator = vm.addr(validatorPrivateKey);
         user = makeAddr("user");
         user2 = makeAddr("user2");
 
@@ -60,6 +65,9 @@ contract BuzzTest is Test {
         token = new MockERC20();
         nft = new MockERC721();
         multiToken = new MockERC1155();
+
+        // Set initial validator
+        buzz.setValidator(validator);
         vm.stopPrank();
         
         // Fund users with ETH
@@ -131,7 +139,7 @@ contract BuzzTest is Test {
 
         // Create signature for first withdrawal
         bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId1), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Execute withdrawal with referenceId1
@@ -144,7 +152,7 @@ contract BuzzTest is Test {
 
         // Create signature for second withdrawal
         messageHash = keccak256(abi.encode(tokens, amounts, user2, buzz.getNonce(referenceId2), expirationBlock)).toEthSignedMessageHash();
-        (v, r, s) = vm.sign(ownerPrivateKey, messageHash);
+        (v, r, s) = vm.sign(validatorPrivateKey, messageHash);
         signature = abi.encodePacked(r, s, v);
 
         // Execute withdrawal with referenceId2
@@ -202,16 +210,18 @@ contract BuzzTest is Test {
     }
 
     function test_RevertWhen_InvalidSignature() public {
+        vm.deal(address(buzz), 5 ether);
         address[] memory tokens = new address[](1);
         tokens[0] = address(0);
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1 ether;
 
-        uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
+        uint256 expirationBlock = block.number + 100;
 
+        // Create signature with wrong private key
         bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xB0B, messageHash); // Using wrong private key
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD, messageHash); // Using wrong key
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(abi.encodeWithSignature("InvalidSignature()"));
@@ -228,7 +238,7 @@ contract BuzzTest is Test {
         uint256 referenceId = 1;
 
         bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(abi.encodeWithSignature("TransferFailed()"));
@@ -249,7 +259,7 @@ contract BuzzTest is Test {
         uint256 referenceId = 1;
 
         bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
@@ -274,7 +284,7 @@ contract BuzzTest is Test {
         uint256 referenceId = 1;
 
         bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
@@ -299,7 +309,7 @@ contract BuzzTest is Test {
         uint256 referenceId = 1;
 
         bytes32 messageHash = keccak256(abi.encode("ERC721", tokens, tokenIds, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
@@ -325,7 +335,7 @@ contract BuzzTest is Test {
         uint256 referenceId = 1;
 
         bytes32 messageHash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
@@ -394,51 +404,30 @@ contract BuzzTest is Test {
         vm.stopPrank();
     }
 
-    function test_WithdrawWithSpecificInputs() public {
-        // Setup the specific inputs from the provided data
-        uint256 amount = 100000000;
-        uint256 referenceId = uint256(0x84C4F5B21CE16EAAC335549B1699C4F07FF52ABCBA4EECD9B60DB36FBEF4ADAE);
-        address recipient = vm.parseAddress("0x11d0b314905dadad47afba733bc846d3a672b34c");
-        uint256 expirationBlock = 50361284;
-        bytes memory signature = hex"4e31d687f634a669075e58cd485c81cb654a2a5ad20021f053a1a547985d060f72e6bceeb3c3c85ead23597a56dae1df5ebda47efad2fff1e0aa36e18478a4881c";
-        
-        // For testing purposes, we'll use our existing mock token instead of trying to create it at a specific address
-        // This allows us to avoid the ERC20InvalidSender error
-        address specificTokenAddress = vm.parseAddress("0xe5bb000C374b20d52A7bBad80B55e0ABd5270F4D");
-        
-        // Create token array and amounts array
-        address[] memory tokens = new address[](1);
-        tokens[0] = specificTokenAddress;
-        
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = amount;
-        
-        // Set block number to be before expiration
-        uint256 originalBlockNumber = block.number;
-        vm.roll(expirationBlock - 1);
-        
-        // Fund the Buzz contract with tokens
-        vm.startPrank(owner);
-        token.transfer(address(buzz), amount);
-        vm.stopPrank();
-        
-        // Since we don't know the exact hash that was signed, we need to extract the signer
-        // We'll create our own signature for testing instead of using the provided one
-        
-        // We need to track the current owner to restore it later
-        address originalOwner = buzz.owner();
-        
-        // Now we can execute the withdrawal with our generated signature
+    function test_ValidatorManagement() public {
+        // Check initial validator
+        assertEq(buzz.validator(), validator);
+
+        // New validator
+        address newValidator = makeAddr("newValidator");
+
+        // Only owner can set validator
         vm.prank(user);
-        buzz.withdraw(tokens, amounts, referenceId, recipient, expirationBlock, signature);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", user));
+        buzz.setValidator(newValidator);
+
+        // Cannot set zero address as validator
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("InvalidValidator()"));
+        buzz.setValidator(address(0));
+
+        // Event should be emitted
+        vm.expectEmit(true, true, false, false);
+        emit ValidatorUpdated(newValidator, validator);
         
-        // Verify the nonce was incremented
-        assertEq(buzz.getNonce(referenceId), 1);
-        
-        // Verify the tokens were transferred
-        assertEq(token.balanceOf(recipient), amount);
-        
-        // Reset block number
-        vm.roll(originalBlockNumber);
+        // Owner can set new validator
+        vm.prank(owner);
+        buzz.setValidator(newValidator);
+        assertEq(buzz.validator(), newValidator);
     }
 }

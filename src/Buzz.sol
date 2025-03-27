@@ -14,6 +14,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
+    address public validator;
     mapping(uint256 => uint256) public nonces;
 
     event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
@@ -21,11 +22,13 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
     event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint256[] values, bytes data);
+    event ValidatorUpdated(address indexed newValidator, address indexed oldValidator);
 
     error InvalidSignature();
     error TransferFailed();
     error InvalidWithdrawalData();
     error WithdrawalExpired();
+    error InvalidValidator();
 
     constructor() Ownable(tx.origin) {}
 
@@ -82,6 +85,13 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
+    function setValidator(address newValidator) external onlyOwner {
+        if (newValidator == address(0)) revert InvalidValidator();
+        address oldValidator = validator;
+        validator = newValidator;
+        emit ValidatorUpdated(newValidator, oldValidator);
+    }
+
     function withdraw(
         address[] calldata tokens,
         uint256[] calldata amounts,
@@ -104,7 +114,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
-        if (messageHash.recover(signature) != owner()) {
+        if (messageHash.recover(signature) != validator) {
             revert InvalidSignature();
         }
 
@@ -150,7 +160,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
-        if (messageHash.recover(signature) != owner()) {
+        address signer = messageHash.recover(signature);
+        if (signer != validator) {
             revert InvalidSignature();
         }
 
@@ -183,7 +194,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[referenceId], expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
-        if (messageHash.recover(signature) != owner()) {
+        address signer = messageHash.recover(signature);
+        if (signer != validator) {
             revert InvalidSignature();
         }
 
