@@ -18,10 +18,14 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
     mapping(uint256 => uint256) public nonces;
 
     event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
-    event WithdrawalBatch(address[] tokens, address recipient, uint256[] amounts);
+    event WithdrawalBatch(uint256 requestId, uint256 nonce, address recipient, address[] tokens, uint256[] amounts);
+    event WithdrawalERC721Batch(uint256 requestId, uint256 nonce, address recipient, address[] tokens, uint256[] tokenIds);
+    event WithdrawalERC1155Batch(uint256 requestId, uint256 nonce, address recipient, address[] tokens, uint256[] ids, uint256[] amounts);
+
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
     event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint256[] values, bytes data);
+
     event ValidatorUpdated(address indexed newValidator, address indexed oldValidator);
 
     error InvalidSignature();
@@ -97,6 +101,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         uint256[] calldata amounts,
         uint256 referenceId,
         address recipient,
+        uint256 requestId,
         uint256 expirationBlock,
         bytes calldata signature
     ) external {
@@ -111,7 +116,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         }
 
         // Verify signature
-        bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, nonces[referenceId], expirationBlock));
+        uint256 nonce = nonces[referenceId];
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, recipient, requestId, nonce, expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         if (messageHash.recover(signature) != validator) {
@@ -136,7 +142,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             }
         }
 
-        emit WithdrawalBatch(tokens, recipient, amounts);
+        emit WithdrawalBatch(requestId, nonce, recipient, tokens, amounts);
     }
 
     // For ERC721 withdrawals
@@ -145,6 +151,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         uint256[] calldata tokenIds,
         uint256 referenceId,
         address recipient,
+        uint256 requestId,
         uint256 expirationBlock,
         bytes calldata signature
     ) external {
@@ -157,7 +164,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, nonces[referenceId], expirationBlock));
+        uint256 nonce = nonces[referenceId];
+        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, recipient, requestId, nonce, expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         address signer = messageHash.recover(signature);
@@ -170,6 +178,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         for (uint256 i = 0; i < tokens.length; i++) {
             IERC721(tokens[i]).safeTransferFrom(address(this), recipient, tokenIds[i]);
         }
+
+        emit WithdrawalERC721Batch(requestId, nonce, recipient, tokens, tokenIds);
     }
 
     // For ERC1155 withdrawals
@@ -179,6 +189,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
         uint256[] calldata amounts,
         uint256 referenceId,
         address recipient,
+        uint256 requestId,
         uint256 expirationBlock,
         bytes calldata signature
     ) external {
@@ -191,7 +202,8 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
             revert InvalidWithdrawalData();
         }
 
-        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, nonces[referenceId], expirationBlock));
+        uint256 nonce = nonces[referenceId];
+        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, recipient, requestId, nonce, expirationBlock));
         bytes32 messageHash = hash.toEthSignedMessageHash();
         
         address signer = messageHash.recover(signature);
@@ -210,5 +222,7 @@ contract Buzz is IERC721Receiver, IERC1155Receiver, Ownable {
                 ""
             );
         }
+
+        emit WithdrawalERC1155Batch(requestId, nonce, recipient, tokens, ids, amounts);
     }
 }

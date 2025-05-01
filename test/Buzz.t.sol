@@ -138,26 +138,28 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
 
         // Create signature for first withdrawal
-        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId1), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, user, 0, buzz.getNonce(referenceId1), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Execute withdrawal with referenceId1
         vm.prank(user);
-        buzz.withdraw(tokens, amounts, referenceId1, user, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId1, user, 0, expirationBlock, signature);
 
         // Nonce should be incremented for referenceId1 but not referenceId2
         assertEq(buzz.getNonce(referenceId1), 1);
         assertEq(buzz.getNonce(referenceId2), 0);
 
         // Create signature for second withdrawal
-        messageHash = keccak256(abi.encode(tokens, amounts, user2, buzz.getNonce(referenceId2), expirationBlock)).toEthSignedMessageHash();
+        hash = keccak256(abi.encode(tokens, amounts, user2, 0, buzz.getNonce(referenceId2), expirationBlock));
+        messageHash = hash.toEthSignedMessageHash();
         (v, r, s) = vm.sign(validatorPrivateKey, messageHash);
         signature = abi.encodePacked(r, s, v);
 
         // Execute withdrawal with referenceId2
         vm.prank(user2);
-        buzz.withdraw(tokens, amounts, referenceId2, user2, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId2, user2, 0, expirationBlock, signature);
 
         // Both nonces should be incremented
         assertEq(buzz.getNonce(referenceId1), 1);
@@ -198,7 +200,7 @@ contract BuzzTest is Test {
         uint256[] memory amounts = new uint256[](1);
         uint256 referenceId = 1;
         vm.expectRevert(abi.encodeWithSignature("InvalidWithdrawalData()"));
-        buzz.withdraw(tokens, amounts, referenceId, user, block.number + 100, "");
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, block.number + 100, "");
     }
 
     function test_RevertWhen_Expired() public {
@@ -206,7 +208,7 @@ contract BuzzTest is Test {
         uint256[] memory amounts = new uint256[](1);
         uint256 referenceId = 1;
         vm.expectRevert(abi.encodeWithSignature("WithdrawalExpired()"));
-        buzz.withdraw(tokens, amounts, referenceId, user, block.number - 1, "");
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, block.number - 1, "");
     }
 
     function test_RevertWhen_InvalidSignature() public {
@@ -220,12 +222,13 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
 
         // Create signature with wrong private key
-        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, user, 0, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD, messageHash); // Using wrong key
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(abi.encodeWithSignature("InvalidSignature()"));
-        buzz.withdraw(tokens, amounts, referenceId, user, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, expirationBlock, signature);
     }
 
     function test_RevertWhen_InsufficientBalance() public {
@@ -237,12 +240,13 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
 
-        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, user, 0, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(abi.encodeWithSignature("TransferFailed()"));
-        buzz.withdraw(tokens, amounts, referenceId, user, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, expirationBlock, signature);
     }
 
     function test_WithdrawNativeCoin() public {
@@ -258,12 +262,13 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
 
-        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, user, 0, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
-        buzz.withdraw(tokens, amounts, referenceId, user, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, expirationBlock, signature);
 
         assertEq(user.balance, initialBalance + 1 ether);
         assertEq(address(buzz).balance, 4 ether);
@@ -283,12 +288,13 @@ contract BuzzTest is Test {
         uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
 
-        bytes32 messageHash = keccak256(abi.encode(tokens, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode(tokens, amounts, user, 0, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
-        buzz.withdraw(tokens, amounts, referenceId, user, expirationBlock, signature);
+        buzz.withdraw(tokens, amounts, referenceId, user, 0, expirationBlock, signature);
 
         assertEq(token.balanceOf(user), 50 ether);
         assertEq(token.balanceOf(address(buzz)), 50 ether);
@@ -307,13 +313,15 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
+        uint256 requestId = 123;
 
-        bytes32 messageHash = keccak256(abi.encode("ERC721", tokens, tokenIds, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode("ERC721", tokens, tokenIds, user, requestId, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
-        buzz.withdrawERC721(tokens, tokenIds, referenceId, user, expirationBlock, signature);
+        buzz.withdrawERC721(tokens, tokenIds, referenceId, user, requestId, expirationBlock, signature);
 
         assertEq(nft.ownerOf(1), user);
     }
@@ -333,13 +341,15 @@ contract BuzzTest is Test {
 
         uint256 expirationBlock = block.number + 100;
         uint256 referenceId = 1;
+        uint256 requestId = 456;
 
-        bytes32 messageHash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, user, buzz.getNonce(referenceId), expirationBlock)).toEthSignedMessageHash();
+        bytes32 hash = keccak256(abi.encode("ERC1155", tokens, ids, amounts, user, requestId, buzz.getNonce(referenceId), expirationBlock));
+        bytes32 messageHash = hash.toEthSignedMessageHash();
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.prank(user);
-        buzz.withdrawERC1155(tokens, ids, amounts, referenceId, user, expirationBlock, signature);
+        buzz.withdrawERC1155(tokens, ids, amounts, referenceId, user, requestId, expirationBlock, signature);
 
         assertEq(multiToken.balanceOf(user, 1), 25);
         assertEq(multiToken.balanceOf(address(buzz), 1), 25);
