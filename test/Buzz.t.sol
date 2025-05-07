@@ -34,7 +34,7 @@ contract BuzzTest is Test {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    event Deposit(address token, uint256 tokenAmount, uint256 valueAmount);
+    event Deposit(uint256 indexed referenceId, address indexed token, uint256 tokenAmount, uint256 valueAmount);
     event ValidatorUpdated(address indexed newValidator, address indexed oldValidator);
 
     Buzz public buzz;
@@ -359,8 +359,8 @@ contract BuzzTest is Test {
         // Test depositing ETH
         vm.prank(user);
         vm.expectEmit(true, true, true, true);
-        emit Deposit(address(0), 0, 1 ether);
-        buzz.deposit{value: 1 ether}(address(0), 0);
+        emit Deposit(1, address(0), 0, 1 ether);
+        buzz.deposit{value: 1 ether}(1, address(0), 0);
         assertEq(address(buzz).balance, 1 ether);
     }
 
@@ -375,8 +375,8 @@ contract BuzzTest is Test {
         
         // Test depositing ERC20 tokens
         vm.expectEmit(true, true, true, true);
-        emit Deposit(address(token), 2 ether, 0);
-        buzz.deposit(address(token), 2 ether);
+        emit Deposit(2, address(token), 2 ether, 0);
+        buzz.deposit(2, address(token), 2 ether);
         
         assertEq(token.balanceOf(address(buzz)), 2 ether);
         assertEq(token.balanceOf(user), 8 ether);
@@ -391,7 +391,7 @@ contract BuzzTest is Test {
         // Try to deposit without approval
         vm.prank(user);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(buzz), 0, 2 ether));
-        buzz.deposit(address(token), 2 ether);
+        buzz.deposit(3, address(token), 2 ether);
     }
 
     function test_DepositBothNativeAndERC20() public {
@@ -405,8 +405,8 @@ contract BuzzTest is Test {
         
         // Test depositing both ETH and ERC20 tokens in same transaction
         vm.expectEmit(true, true, true, true);
-        emit Deposit(address(token), 2 ether, 1 ether);
-        buzz.deposit{value: 1 ether}(address(token), 2 ether);
+        emit Deposit(4, address(token), 2 ether, 1 ether);
+        buzz.deposit{value: 1 ether}(4, address(token), 2 ether);
         
         assertEq(address(buzz).balance, 1 ether);
         assertEq(token.balanceOf(address(buzz)), 2 ether);
